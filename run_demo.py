@@ -125,7 +125,6 @@ def demo_webcam(pipeline: PersonTrackingPipeline, max_frames: int = 1000, show_a
             
             # Show analytics overlay if enabled
             if show_analytics:
-                # Note: We don't have the actual frame in process_stream, 
                 # so this is mainly for video processing
                 pass
             
