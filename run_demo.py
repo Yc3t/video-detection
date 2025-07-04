@@ -1,10 +1,4 @@
-#!/usr/bin/env python3
-"""
-Demo script for the Person Detection and Tracking System.
 
-This script provides a simple command-line interface to test the system
-with different input sources (webcam, video file, or image).
-"""
 
 import argparse
 import sys
