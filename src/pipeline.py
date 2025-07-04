@@ -17,7 +17,7 @@ from .features.feature_extractor import FeatureExtractor
 
 @dataclass
 class ProcessingResult:
-    """Result of processing a single frame."""
+    """resultado procesamiento single frame."""
     frame_id: int
     timestamp: float
     detections: List[Detection]
@@ -25,7 +25,7 @@ class ProcessingResult:
     processing_time: float
     
     def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary for serialization."""
+        """convierte a diccionario para serialización."""
         return {
             "frame_id": self.frame_id,
             "timestamp": self.timestamp,
@@ -47,7 +47,7 @@ class ProcessingResult:
 
 @dataclass
 class VideoResult:
-    """Result of processing an entire video."""
+    """resultado procesamiento video completo."""
     video_path: str
     total_frames: int
     fps: float
@@ -56,7 +56,7 @@ class VideoResult:
     summary: Dict[str, Any]
     
     def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary for serialization."""
+        """convierte a diccionario para serialización."""
         return {
             "video_path": self.video_path,
             "total_frames": self.total_frames,
@@ -69,61 +69,61 @@ class VideoResult:
 
 class PersonTrackingPipeline:
     """
-    Complete person tracking pipeline.
+    pipeline tracking personas completo.
     
-    Integrates detection, tracking, and re-identification for comprehensive
-    person analysis in video streams.
+    integra detección, tracking y re-identificación para análisis
+    personas comprensivo en streams video.
     """
     
     def __init__(self, config_path: Optional[str] = None, device: str = "auto"):
         """
-        Initialize the tracking pipeline.
+        inicializa pipeline tracking.
         
-        Args:
-            config_path: Path to configuration file
-            device: Device to use for processing (default: "auto")
+        args:
+            config_path: path archivo configuración
+            device: dispositivo usar para procesamiento (default: "auto")
         """
-        # Load configuration
+        # carga configuración
         if config_path is None:
             config_path = Path(__file__).parent.parent / "config" / "config.yaml"
         
         self.config = self._load_config(config_path)
-        # Device override ('auto', 'cpu', 'gpu' -> 'cuda:0')
+        # override dispositivo ('auto', 'cpu', 'gpu' -> 'cuda:0')
         device = device.lower() if device else "auto"
         if device == "gpu":
             device = "cuda:0"
         self.override_device = device
         
-        # Initialize components
+        # inicializa componentes
         self.detector = self._init_detector()
         self.tracker = self._init_tracker()
-        # Use ResNet-50 based feature extractor for richer embeddings
+        # usa extractor features basado resnet-50 para embeddings más ricos
         self.extractor = FeatureExtractor(device=self.override_device, method="resnet50")
         
-        # Statistics
+        # estadísticas
         self.stats = {
             "total_frames_processed": 0,
             "total_detections": 0,
-            "total_tracks_created": 0,  # Cumulative count of tracks created
+            "total_tracks_created": 0,  # count acumulativo tracks creados
             "average_processing_time": 0.0
         }
         
-        logger.info("Person tracking pipeline initialized")
+        logger.info("pipeline tracking personas inicializado")
     
     def _load_config(self, config_path: str) -> Dict[str, Any]:
-        """Load configuration from YAML file."""
+        """carga configuración desde archivo yaml."""
         try:
             with open(config_path, 'r') as f:
                 config = yaml.safe_load(f)
-            logger.info(f"Configuration loaded from {config_path}")
+            logger.info(f"configuración cargada desde {config_path}")
             return config
         except Exception as e:
-            logger.warning(f"Failed to load config from {config_path}: {e}")
-            logger.info("Using default configuration")
+            logger.warning(f"fallo cargar config desde {config_path}: {e}")
+            logger.info("usando configuración por defecto")
             return self._get_default_config()
     
     def _get_default_config(self) -> Dict[str, Any]:
-        """Get default configuration."""
+        """obtiene configuración por defecto."""
         return {
             "detection": {
                 "model_name": "yolov8m.pt",
@@ -147,10 +147,10 @@ class PersonTrackingPipeline:
         }
     
     def _init_detector(self) -> PersonDetector:
-        """Initialize person detector."""
+        """inicializa detector personas."""
         det_config = self.config["detection"].copy()
 
-        # Override device if requested
+        # override dispositivo si solicitado
         if self.override_device != "auto":
             det_config["device"] = self.override_device
 
@@ -167,7 +167,7 @@ class PersonTrackingPipeline:
         )
     
     def _init_tracker(self) -> PersonTracker:
-        """Initialize person tracker."""
+        """inicializa tracker personas."""
         track_config = self.config["tracking"]
         tracker_type = track_config.get("tracker_type", "deepsort")
         
@@ -189,22 +189,22 @@ class PersonTrackingPipeline:
         timestamp: float = 0.0
     ) -> ProcessingResult:
         """
-        Process a single frame.
+        procesa single frame.
         
-        Args:
-            frame: Input frame as numpy array
-            frame_id: Frame identifier
-            timestamp: Frame timestamp
+        args:
+            frame: frame entrada como numpy array
+            frame_id: identificador frame
+            timestamp: timestamp frame
             
-        Returns:
-            ProcessingResult with detections and tracks
+        returns:
+            processingresult con detecciones y tracks
         """
         start_time = time.time()
         
-        # Person detection
+        # detección personas
         detections = self.detector.detect(frame)
         
-        # Extract features for detected persons (batch extraction)
+        # extrae features para personas detectadas (extracción batch)
         bboxes = [d.bbox for d in detections]
         features: List[np.ndarray] = []
         if bboxes:
@@ -212,20 +212,20 @@ class PersonTrackingPipeline:
             if extracted is not None and len(extracted) == len(bboxes):
                 features = extracted
             else:
-                # Fallback to zero vectors if extraction failed or size mismatch
+                # fallback a vectores cero si extracción falló o tamaño no coincide
                 features = [np.zeros(self.extractor.feature_dim, dtype=np.float32) for _ in bboxes]
         
-        # Update tracker. DeepSORTTracker requires appearance features, IoU tracker does not.
+        # actualiza tracker. deepsorttracker requiere features apariencia, iou tracker no.
         if isinstance(self.tracker, DeepSORTTracker):
             tracks = self.tracker.update(detections, features)  # type: ignore[arg-type]
         else:
             tracks = self.tracker.update(detections)  # type: ignore[arg-type]
         
-        # Update statistics
+        # actualiza estadísticas
         self.stats["total_frames_processed"] += 1
         self.stats["total_detections"] += len(detections)
         
-        # Count new tracks (track_id not seen before)
+        # cuenta nuevos tracks (track_id no visto antes)
         current_track_ids = {track.track_id for track in tracks}
         if not hasattr(self, '_seen_track_ids'):
             self._seen_track_ids = set()
@@ -236,7 +236,7 @@ class PersonTrackingPipeline:
         
         processing_time = time.time() - start_time
         
-        # Update average processing time
+        # actualiza tiempo procesamiento promedio
         total_frames = self.stats["total_frames_processed"]
         current_avg = self.stats["average_processing_time"]
         self.stats["average_processing_time"] = (current_avg * (total_frames - 1) + processing_time) / total_frames
@@ -258,49 +258,49 @@ class PersonTrackingPipeline:
         preserve_audio: bool = True
     ) -> VideoResult:
         """
-        Process an entire video file.
+        procesa archivo video completo.
         
-        Args:
-            video_path: Path to input video
-            output_path: Path for output video (optional)
-            visualize: Whether to create visualization video
-            save_results: Whether to save processing results
-            preserve_audio: Whether to preserve audio in output video
+        args:
+            video_path: path video entrada
+            output_path: path video salida (opcional)
+            visualize: si crear video visualización
+            save_results: si guardar resultados procesamiento
+            preserve_audio: si preservar audio en video salida
             
-        Returns:
-            VideoResult with processing information
+        returns:
+            videoresult con información procesamiento
         """
-        logger.info(f"Processing video: {video_path}")
+        logger.info(f"procesando video: {video_path}")
         
         if not Path(video_path).exists():
-            raise FileNotFoundError(f"Video file not found: {video_path}")
+            raise FileNotFoundError(f"archivo video no encontrado: {video_path}")
         
-        # Open video
+        # abre video
         cap = cv2.VideoCapture(video_path)
         
         if not cap.isOpened():
-            raise ValueError(f"Could not open video: {video_path}")
+            raise ValueError(f"no pudo abrir video: {video_path}")
         
-        # Get video properties
+        # obtiene propiedades video
         fps = cap.get(cv2.CAP_PROP_FPS)
         total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
         frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         duration = total_frames / fps if fps > 0 else 0
         
-        logger.info(f"Video info: {total_frames} frames, {fps:.2f} FPS, {duration:.2f}s")
+        logger.info(f"info video: {total_frames} frames, {fps:.2f} fps, {duration:.2f}s")
         
-        # Setup output video writer if needed
+        # configura writer video salida si necesario
         out_writer = None
         temp_output_path = None
         
         if visualize and output_path:
-            # Use temporary file for video without audio
+            # usa archivo temporal para video sin audio
             temp_output_path = tempfile.mktemp(suffix='.mp4')
             fourcc = cv2.VideoWriter_fourcc(*'mp4v')
             out_writer = cv2.VideoWriter(temp_output_path, fourcc, fps, (frame_width, frame_height))
         
-        # Process frames
+        # procesa frames
         frame_results = []
         frame_id = 0
         
@@ -312,31 +312,31 @@ class PersonTrackingPipeline:
                 
                 timestamp = frame_id / fps if fps > 0 else frame_id
                 
-                # Process frame
+                # procesa frame
                 result = self.process_frame(frame, frame_id, timestamp)
                 frame_results.append(result)
                 
-                # Create visualization if requested
+                # crea visualización si solicitado
                 if visualize and out_writer:
                     vis_frame = self.visualize_frame(frame, result)
                     out_writer.write(vis_frame)
                 
                 frame_id += 1
                 
-                # Progress logging
+                # logging progreso
                 if frame_id % 100 == 0:
                     progress = (frame_id / total_frames) * 100
-                    logger.info(f"Progress: {progress:.1f}% ({frame_id}/{total_frames})")
+                    logger.info(f"progreso: {progress:.1f}% ({frame_id}/{total_frames})")
         
         finally:
             cap.release()
             if out_writer:
                 out_writer.release()
         
-        # Generate summary
+        # genera resumen
         summary = self._generate_summary(frame_results, fps)
         
-        # Create video result
+        # crea resultado video
         video_result = VideoResult(
             video_path=video_path,
             total_frames=total_frames,
@@ -346,24 +346,24 @@ class PersonTrackingPipeline:
             summary=summary
         )
         
-        # Save results if requested
+        # guarda resultados si solicitado
         if save_results:
             self._save_results(video_result, video_path)
         
-        # Handle audio preservation and final output
+        # maneja preservación audio y salida final
         if visualize and output_path and temp_output_path:
             if preserve_audio:
                 self._combine_video_with_audio(video_path, temp_output_path, output_path)
-                # Clean up temporary file
+                # limpia archivo temporal
                 if os.path.exists(temp_output_path):
                     os.remove(temp_output_path)
             else:
-                # Just move the temporary file to final location
+                # solo mueve archivo temporal a ubicación final
                 if os.path.exists(temp_output_path):
                     import shutil
                     shutil.move(temp_output_path, output_path)
         
-        logger.info(f"Video processing completed: {len(frame_results)} frames processed")
+        logger.info(f"procesamiento video completado: {len(frame_results)} frames procesados")
         return video_result
     
     def process_stream(
@@ -372,23 +372,23 @@ class PersonTrackingPipeline:
         max_frames: Optional[int] = None
     ) -> Generator[ProcessingResult, None, None]:
         """
-        Process a video stream (camera or network stream).
+        procesa stream video (cámara o stream red).
         
-        Args:
-            source: Stream source (camera index or URL)
-            max_frames: Maximum number of frames to process (None for unlimited)
+        args:
+            source: fuente stream (índice cámara o url)
+            max_frames: número máximo frames procesar (none para ilimitado)
             
-        Yields:
-            ProcessingResult for each frame
+        yields:
+            processingresult para cada frame
         """
-        logger.info(f"Starting stream processing: {source}")
+        logger.info(f"iniciando procesamiento stream: {source}")
         
         cap = cv2.VideoCapture(source)
         
         if not cap.isOpened():
-            raise ValueError(f"Could not open stream: {source}")
+            raise ValueError(f"no pudo abrir stream: {source}")
         
-        fps = cap.get(cv2.CAP_PROP_FPS) or 30.0  # Default to 30 FPS if unknown
+        fps = cap.get(cv2.CAP_PROP_FPS) or 30.0  # por defecto 30 fps si desconocido
         frame_id = 0
         
         try:
@@ -398,7 +398,7 @@ class PersonTrackingPipeline:
                 
                 ret, frame = cap.read()
                 if not ret:
-                    logger.warning("Failed to read frame from stream")
+                    logger.warning("fallo leer frame desde stream")
                     break
                 
                 timestamp = frame_id / fps
@@ -409,62 +409,62 @@ class PersonTrackingPipeline:
         
         finally:
             cap.release()
-            logger.info(f"Stream processing ended: {frame_id} frames processed")
+            logger.info(f"procesamiento stream terminado: {frame_id} frames procesados")
     
     def visualize_frame(self, frame: np.ndarray, result: ProcessingResult) -> np.ndarray:
         """
-        Create visualization for a single frame.
+        crea visualización para single frame.
         
-        Args:
-            frame: Original frame
-            result: Processing result
+        args:
+            frame: frame original
+            result: resultado procesamiento
             
-        Returns:
-            Annotated frame
+        returns:
+            frame anotado
         """
         vis_frame = frame.copy()
         
-        # Draw detections
+        # dibuja detecciones
         for detection in result.detections:
             x1, y1, x2, y2 = detection.bbox
             
-            # Draw bounding box
+            # dibuja bounding box
             cv2.rectangle(vis_frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
             
-            # Draw confidence
+            # dibuja confianza
             conf_text = f"{detection.confidence:.2f}"
             cv2.putText(vis_frame, conf_text, (x1, y1-10), 
                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
         
-        # Draw tracks
+        # dibuja tracks
         for track in result.tracks:
             if track.current_bbox is not None:
                 x1, y1, x2, y2 = track.current_bbox
                 
-                # Different color for tracked objects
-                color = (255, 0, 0)  # Blue for tracks
+                # color diferente para objetos tracked
+                color = (255, 0, 0)  # azul para tracks
                 
-                # Draw bounding box
+                # dibuja bounding box
                 cv2.rectangle(vis_frame, (x1, y1), (x2, y2), color, 2)
                 
-                # Draw track ID
-                track_text = f"ID: {track.track_id}"
+                # dibuja track id
+                track_text = f"id: {track.track_id}"
                 cv2.putText(vis_frame, track_text, (x1, y2+20), 
                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
         
-        # Add frame info
-        info_text = f"Frame: {result.frame_id} | Detections: {len(result.detections)} | Tracks: {len(result.tracks)}"
+        # añade info frame
+        info_text = f"frame: {result.frame_id} | detecciones: {len(result.detections)} | tracks: {len(result.tracks)}"
         cv2.putText(vis_frame, info_text, (10, 30), 
                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
         
-        processing_text = f"Processing: {result.processing_time*1000:.1f}ms"
+        processing_text = f"procesamiento: {result.processing_time*1000:.1f}ms"
         cv2.putText(vis_frame, processing_text, (10, 60), 
                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
         
         return vis_frame
     
     def _generate_summary(self, frame_results: List[ProcessingResult], fps: float) -> Dict[str, Any]:
-        """Generate processing summary."""
+        """genera resumen procesamiento."""
         if not frame_results:
             return {}
         
@@ -482,7 +482,7 @@ class PersonTrackingPipeline:
         }
     
     def _save_results(self, video_result: VideoResult, video_path: str):
-        """Save processing results to JSON file."""
+        """guarda resultados procesamiento a archivo json."""
         output_dir = Path(video_path).parent
         output_file = output_dir / f"{Path(video_path).stem}_results.json"
         
@@ -490,16 +490,16 @@ class PersonTrackingPipeline:
             with open(output_file, 'w') as f:
                 import json
                 json.dump(video_result.to_dict(), f, indent=2)
-            logger.info(f"Results saved to: {output_file}")
+            logger.info(f"resultados guardados en: {output_file}")
         except Exception as e:
-            logger.error(f"Failed to save results: {e}")
+            logger.error(f"fallo guardar resultados: {e}")
     
     def get_statistics(self) -> Dict[str, Any]:
-        """Get current pipeline statistics."""
+        """obtiene estadísticas pipeline actuales."""
         return self.stats.copy()
     
     def reset_statistics(self):
-        """Reset pipeline statistics."""
+        """resetea estadísticas pipeline."""
         self.stats = {
             "total_frames_processed": 0,
             "total_detections": 0,
@@ -508,39 +508,39 @@ class PersonTrackingPipeline:
         }
         if hasattr(self, '_seen_track_ids'):
             self._seen_track_ids.clear()
-        logger.info("Pipeline statistics reset")
+        logger.info("estadísticas pipeline reseteadas")
     
     def _combine_video_with_audio(self, original_video: str, processed_video: str, output_path: str):
-        """Combine processed video with original audio using ffmpeg."""
+        """combina video procesado con audio original usando ffmpeg."""
         try:
             cmd = [
                 'ffmpeg',
-                '-i', processed_video,  # Video input
-                '-i', original_video,   # Audio input
-                '-c:v', 'copy',         # Copy video codec
-                '-c:a', 'aac',          # Audio codec
-                '-map', '0:v:0',        # Map video from first input
-                '-map', '1:a:0',        # Map audio from second input
-                '-y',                   # Overwrite output file
+                '-i', processed_video,  # entrada video
+                '-i', original_video,   # entrada audio
+                '-c:v', 'copy',         # copia codec video
+                '-c:a', 'aac',          # codec audio
+                '-map', '0:v:0',        # mapea video desde primera entrada
+                '-map', '1:a:0',        # mapea audio desde segunda entrada
+                '-y',                   # sobrescribe archivo salida
                 output_path
             ]
             
             result = subprocess.run(cmd, capture_output=True, text=True)
             
             if result.returncode == 0:
-                logger.info(f"Successfully combined video with audio: {output_path}")
+                logger.info(f"combinado exitosamente video con audio: {output_path}")
             else:
-                logger.warning(f"ffmpeg failed: {result.stderr}")
-                # Fallback: just copy the processed video
+                logger.warning(f"ffmpeg falló: {result.stderr}")
+                # fallback: solo copia video procesado
                 import shutil
                 shutil.copy2(processed_video, output_path)
-                logger.info(f"Copied processed video without audio: {output_path}")
+                logger.info(f"copiado video procesado sin audio: {output_path}")
                 
         except FileNotFoundError:
-            logger.warning("ffmpeg not found. Saving video without audio.")
+            logger.warning("ffmpeg no encontrado. guardando video sin audio.")
             import shutil
             shutil.copy2(processed_video, output_path)
         except Exception as e:
-            logger.error(f"Error combining video with audio: {e}")
+            logger.error(f"error combinando video con audio: {e}")
             import shutil
             shutil.copy2(processed_video, output_path) 
