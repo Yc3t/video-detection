@@ -1,5 +1,3 @@
-
-
 import cv2
 import numpy as np
 from typing import List, Tuple, Optional, Dict, Any
@@ -10,7 +8,7 @@ from loguru import logger
 
 @dataclass
 class Detection:
-    """Represents a single person detection."""
+    """representa una single detección persona."""
     bbox: Tuple[int, int, int, int]  # x1, y1, x2, y2
     confidence: float
     class_id: int
@@ -20,9 +18,9 @@ class Detection:
 
 class PersonDetector:
     """
-    YOLOv8-based person detector.
+    detector personas basado yolov8.
     
-    Detects people in video frames and returns bounding boxes with confidence scores.
+    detecta personas en frames video y retorna bounding boxes con scores confianza.
     """
     
     def __init__(
@@ -38,42 +36,42 @@ class PersonDetector:
         merge_iou_threshold: float = 0.5,
     ):
         """
-        Initialize the person detector.
+        inicializa detector personas.
         
-        Args:
-            model_name: YOLOv8 model name (yolov8n.pt, yolov8s.pt, yolov8m.pt, etc.)
-            confidence_threshold: Minimum confidence for detections
-            iou_threshold: IoU threshold for NMS
-            device: Device to run inference on ('auto', 'cpu', 'cuda:0', etc.)
-            classes: List of class IDs to detect (None for all, [0] for person only)
-            max_det: Maximum number of detections per image
-            multi_scale: Enable multi-scale inference for improved recall
-            scales: List of scale factors (e.g., [0.5, 1.0, 1.5]) when multi_scale is True
-            merge_iou_threshold: IoU threshold when merging detections from different scales
+        args:
+            model_name: nombre modelo yolov8 (yolov8n.pt, yolov8s.pt, yolov8m.pt, etc.)
+            confidence_threshold: confianza mínima para detecciones
+            iou_threshold: umbral iou para nms
+            device: dispositivo ejecutar inferencia ('auto', 'cpu', 'cuda:0', etc.)
+            classes: lista ids clases detectar (none para todos, [0] solo personas)
+            max_det: número máximo detecciones por imagen
+            multi_scale: habilita inferencia multi-escala para mejorar recall
+            scales: lista factores escala (ej. [0.5, 1.0, 1.5]) cuando multi_scale es true
+            merge_iou_threshold: umbral iou cuando merge detecciones de diferentes escalas
         """
         self.model_name = model_name
         self.confidence_threshold = confidence_threshold
         self.iou_threshold = iou_threshold
         self.device = device
-        self.classes = classes or [0]  # Default to person class only
+        self.classes = classes or [0]  # por defecto solo clase persona
         self.max_det = max_det
         self.multi_scale = multi_scale
         self.scales = sorted(list(set(scales or [1.0] + ([0.5, 1.5] if multi_scale else []))))
         self.merge_iou_threshold = merge_iou_threshold
         
-        # Initialize model
-        logger.info(f"Loading YOLO model: {model_name}")
+        # inicializa modelo
+        logger.info(f"cargando modelo yolo: {model_name}")
         self.model = YOLO(model_name)
         
-        # Move to specified device
+        # mueve a dispositivo especificado
         if device != "auto":
             self.model.to(device)
             
-        logger.info(f"Person detector initialized with {model_name} on {device}")
+        logger.info(f"detector personas inicializado con {model_name} en {device}")
     
     @staticmethod
     def _iou(b1: Tuple[int, int, int, int], b2: Tuple[int, int, int, int]) -> float:
-        """Compute IoU between two bboxes."""
+        """computa iou entre dos bboxes."""
         x1 = max(b1[0], b2[0])
         y1 = max(b1[1], b2[1])
         x2 = min(b1[2], b2[2])
@@ -87,7 +85,7 @@ class PersonDetector:
         return inter / union if union > 0 else 0.0
 
     def _apply_nms(self, detections: List["Detection"], iou_thr: float) -> List["Detection"]:
-        """Apply simple IoU-based NMS on a list of Detection objects."""
+        """aplica nms simple basado iou en lista objetos detection."""
         if not detections:
             return []
 
@@ -106,18 +104,18 @@ class PersonDetector:
         timestamp: float = 0.0
     ) -> List[Detection]:
         """
-        Detect people in a single frame.
+        detecta personas en single frame.
         
-        Args:
-            frame: Input frame as numpy array (BGR format)
-            frame_id: Frame identifier
-            timestamp: Timestamp of the frame
+        args:
+            frame: frame entrada como numpy array (formato bgr)
+            frame_id: identificador frame
+            timestamp: timestamp del frame
             
-        Returns:
-            List of Detection objects
+        returns:
+            lista objetos detection
         """
         if frame is None or frame.size == 0:
-            logger.warning("Empty frame received")
+            logger.warning("frame vacío recibido")
             return []
         
         try:
@@ -146,7 +144,7 @@ class PersonDetector:
                     class_ids = result.boxes.cls.cpu().numpy().astype(int)
 
                     for box, conf, cls_id in zip(boxes, confidences, class_ids):
-                        x1, y1, x2, y2 = box / scale  # scale back to original image size
+                        x1, y1, x2, y2 = box / scale  # escala de vuelta a tamaño imagen original
                         detection = Detection(
                             bbox=(int(x1), int(y1), int(x2), int(y2)),
                             confidence=float(conf),
@@ -156,14 +154,14 @@ class PersonDetector:
                         )
                         detections_all.append(detection)
 
-            # Merge duplicates via NMS if multi-scale gathered several boxes
+            # merge duplicados via nms si multi-escala reunió varias cajas
             final_detections = self._apply_nms(detections_all, self.merge_iou_threshold)
 
-            logger.debug(f"Detected {len(final_detections)} people in frame {frame_id} (raw {len(detections_all)})")
+            logger.debug(f"detectadas {len(final_detections)} personas en frame {frame_id} (raw {len(detections_all)})")
             return final_detections
 
         except Exception as e:
-            logger.error(f"Error during detection: {e}")
+            logger.error(f"error durante detección: {e}")
             return []
     
     def detect_batch(
@@ -173,15 +171,15 @@ class PersonDetector:
         timestamps: Optional[List[float]] = None
     ) -> List[List[Detection]]:
         """
-        Detect people in a batch of frames.
+        detecta personas en batch frames.
         
-        Args:
-            frames: List of input frames
-            frame_ids: List of frame identifiers
-            timestamps: List of timestamps
+        args:
+            frames: lista frames entrada
+            frame_ids: lista identificadores frame
+            timestamps: lista timestamps
             
-        Returns:
-            List of detection lists (one per frame)
+        returns:
+            lista listas detecciones (una por frame)
         """
         if not frames:
             return []
@@ -194,7 +192,7 @@ class PersonDetector:
         batch_detections = []
         
         try:
-            # Run batch inference
+            # ejecuta inferencia batch
             results = self.model(
                 frames,
                 conf=self.confidence_threshold,
@@ -204,7 +202,7 @@ class PersonDetector:
                 verbose=False
             )
             
-            # Process each frame's results
+            # procesa resultados cada frame
             for i, result in enumerate(results):
                 frame_detections = []
                 
@@ -228,7 +226,7 @@ class PersonDetector:
                 batch_detections.append(frame_detections)
                 
         except Exception as e:
-            logger.error(f"Error during batch detection: {e}")
+            logger.error(f"error durante detección batch: {e}")
             batch_detections = [[] for _ in frames]
         
         return batch_detections
@@ -241,28 +239,28 @@ class PersonDetector:
         color: Tuple[int, int, int] = (0, 255, 0)
     ) -> np.ndarray:
         """
-        Visualize detections on a frame.
+        visualiza detecciones en frame.
         
-        Args:
-            frame: Input frame
-            detections: List of detections to visualize
-            show_confidence: Whether to show confidence scores
-            color: BGR color for bounding boxes
+        args:
+            frame: frame entrada
+            detections: lista detecciones visualizar
+            show_confidence: si mostrar scores confianza
+            color: color bgr para bounding boxes
             
-        Returns:
-            Frame with visualized detections
+        returns:
+            frame con detecciones visualizadas
         """
         vis_frame = frame.copy()
         
         for detection in detections:
             x1, y1, x2, y2 = detection.bbox
             
-            # Draw bounding box
+            # dibuja bounding box
             cv2.rectangle(vis_frame, (x1, y1), (x2, y2), color, 2)
             
-            # Draw confidence score
+            # dibuja score confianza
             if show_confidence:
-                label = f"Person: {detection.confidence:.2f}"
+                label = f"persona: {detection.confidence:.2f}"
                 label_size = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 2)[0]
                 cv2.rectangle(
                     vis_frame, 
@@ -284,7 +282,7 @@ class PersonDetector:
         return vis_frame
     
     def get_model_info(self) -> Dict[str, Any]:
-        """Get information about the loaded model."""
+        """obtiene información sobre modelo cargado."""
         return {
             "model_name": self.model_name,
             "device": str(self.model.device),
