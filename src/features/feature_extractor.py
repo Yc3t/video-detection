@@ -1,8 +1,8 @@
 """
-Simple feature extractor for person re-identification.
+extractor features simple para re-identificación personas.
 
-This module provides basic appearance feature extraction for tracking applications.
-For better performance, consider using dedicated ReID models like OSNet or ResNet.
+este módulo provee extracción básica features apariencia para aplicaciones tracking.
+para mejor rendimiento, considera usar modelos reid dedicados como osnet o resnet.
 """
 
 import cv2
@@ -14,7 +14,7 @@ try:
     import torch
     import torchvision.transforms as T
     import torchvision.models as models
-except ImportError:  # Torch may not be available in some environments
+except ImportError:  # torch puede no estar disponible en algunos entornos
     torch = None  # type: ignore
     T = None  # type: ignore
     models = None  # type: ignore
@@ -22,44 +22,44 @@ except ImportError:  # Torch may not be available in some environments
 
 class FeatureExtractor:
     """
-    Simple feature extractor for person appearance.
+    extractor features simple para apariencia personas.
     
-    Uses basic image features like color histograms and HOG descriptors
-    for appearance-based tracking. This is a lightweight baseline that
-    can be replaced with more sophisticated ReID models.
+    usa features imagen básicas como histogramas color y descriptores hog
+    para tracking basado apariencia. esto es baseline ligero que
+    puede reemplazarse con modelos reid más sofisticados.
     """
     
     def __init__(self, device: str = "auto", feature_dim: int = 512, method: str = "hog"):
         """
-        Initialize feature extractor.
+        inicializa extractor features.
         
-        Args:
-            device: Device to use (auto, cpu, cuda)
-            feature_dim: Dimension of output features (ignored for deep models)
-            method: Feature extraction method ("hog" for classic HOG+color, "resnet50" for deep CNN)
+        args:
+            device: dispositivo usar (auto, cpu, cuda)
+            feature_dim: dimensión features salida (ignorado para modelos deep)
+            method: método extracción features ("hog" para hog+color clásico, "resnet50" para cnn deep)
         """
         self.device = device
         self.method = method.lower()
 
-        # Classic HOG + color histogram
+        # hog clásico + histograma color
         if self.method.startswith("hog"):
             self.feature_dim = feature_dim
             self._setup_hog()
-            logger.info(f"FeatureExtractor (HOG) initialized with {self.feature_dim}-D features")
+            logger.info(f"featureextractor (hog) inicializado con features {self.feature_dim}-d")
 
-        # Deep CNN features (e.g. ResNet-50 backbone)
+        # features cnn deep (ej. backbone resnet-50)
         elif self.method in {"resnet50", "cnn"}:
             if torch is None or models is None:
-                raise ImportError("PyTorch and torchvision are required for deep feature extraction")
+                raise ImportError("pytorch y torchvision requeridos para extracción features deep")
             self._setup_deep_model()
-            logger.info(f"FeatureExtractor (ResNet50) initialized with {self.feature_dim}-D features on {self.device}")
+            logger.info(f"featureextractor (resnet50) inicializado con features {self.feature_dim}-d en {self.device}")
 
         else:
-            raise ValueError(f"Unknown feature extraction method: {self.method}")
+            raise ValueError(f"método extracción features desconocido: {self.method}")
     
     def _setup_hog(self):
-        """Setup HOG descriptor."""
-        # HOG parameters
+        """configura descriptor hog."""
+        # parámetros hog
         self.hog = cv2.HOGDescriptor(
             _winSize=(64, 128),
             _blockSize=(16, 16),
@@ -69,26 +69,26 @@ class FeatureExtractor:
         )
     
     def _setup_deep_model(self):
-        """Load a pretrained CNN (ResNet-50) for appearance embeddings."""
-        # Resolve device
+        """carga cnn preentrenada (resnet-50) para embeddings apariencia."""
+        # resuelve dispositivo
         resolved_device = self.device
         if self.device == "auto":
             resolved_device = "cuda" if torch and torch.cuda.is_available() else "cpu"
 
-        # Load pretrained ResNet-50 (handle torchvision version differences)
+        # carga resnet-50 preentrenada (maneja diferencias versión torchvision)
         try:
             # torchvision >= 0.13
             self.cnn = models.resnet50(weights=models.ResNet50_Weights.DEFAULT)
         except AttributeError:
-            # Older torchvision versions
+            # versiones torchvision más viejas
             self.cnn = models.resnet50(pretrained=True)
-        self.cnn.fc = torch.nn.Identity()  # Remove final classification layer
+        self.cnn.fc = torch.nn.Identity()  # remueve capa clasificación final
         self.cnn.eval().to(resolved_device)
 
-        # Output dimension of ResNet-50 penultimate layer
+        # dimensión salida capa penúltima resnet-50
         self.feature_dim = 2048
 
-        # Pre-processing pipeline (ImageNet stats)
+        # pipeline pre-procesamiento (stats imagenet)
         self.preprocess = T.Compose([
             T.ToPILImage(),
             T.Resize((224, 224)),
@@ -104,14 +104,14 @@ class FeatureExtractor:
         bboxes: List[Tuple[int, int, int, int]]
     ) -> Optional[List[np.ndarray]]:
         """
-        Extract appearance features from detected persons.
+        extrae features apariencia de personas detectadas.
         
-        Args:
-            frame: Input frame
-            bboxes: List of bounding boxes [(x1, y1, x2, y2), ...]
+        args:
+            frame: frame entrada
+            bboxes: lista bounding boxes [(x1, y1, x2, y2), ...]
             
-        Returns:
-            List of feature vectors for each bbox, or None if extraction fails
+        returns:
+            lista vectores features para cada bbox, o none si extracción falla
         """
         if not bboxes or frame is None or frame.size == 0:
             return None
@@ -127,13 +127,13 @@ class FeatureExtractor:
                 if feature is not None:
                     features.append(feature)
                 else:
-                    # Use zero vector as fallback
+                    # usa vector cero como fallback
                     features.append(np.zeros(self.feature_dim, dtype=np.float32))
             
             return features
             
         except Exception as e:
-            logger.warning(f"Feature extraction failed: {e}")
+            logger.warning(f"extracción features falló: {e}")
             return None
     
     def _extract_single(
@@ -141,37 +141,37 @@ class FeatureExtractor:
         frame: np.ndarray, 
         bbox: Tuple[int, int, int, int]
     ) -> Optional[np.ndarray]:
-        """Extract features from a single bounding box."""
+        """extrae features de un single bounding box."""
         try:
             x1, y1, x2, y2 = bbox
             
-            # Validate bounding box
+            # valida bounding box
             h, w = frame.shape[:2]
             x1 = max(0, min(x1, w - 1))
             y1 = max(0, min(y1, h - 1))
             x2 = max(x1 + 1, min(x2, w))
             y2 = max(y1 + 1, min(y2, h))
             
-            # Extract ROI
+            # extrae roi
             roi = frame[y1:y2, x1:x2]
             
             if roi.size == 0:
                 return None
             
-            # Resize to standard size
+            # redimensiona a tamaño estándar
             roi = cv2.resize(roi, (64, 128))
             
-            # Extract features
+            # extrae features
             color_features = self._extract_color_features(roi)
             hog_features = self._extract_hog_features(roi)
             
-            # Combine features
+            # combina features
             combined = np.concatenate([color_features, hog_features])
             
-            # Normalize and resize to target dimension
+            # normaliza y redimensiona a dimensión objetivo
             combined = combined / (np.linalg.norm(combined) + 1e-8)
             
-            # Pad or truncate to target dimension
+            # rellena o trunca a dimensión objetivo
             if len(combined) < self.feature_dim:
                 feature = np.zeros(self.feature_dim, dtype=np.float32)
                 feature[:len(combined)] = combined
@@ -181,11 +181,11 @@ class FeatureExtractor:
             return feature
             
         except Exception as e:
-            logger.debug(f"Single feature extraction failed: {e}")
+            logger.debug(f"extracción single feature falló: {e}")
             return None
     
     def _extract_single_deep(self, frame: np.ndarray, bbox: Tuple[int, int, int, int]) -> Optional[np.ndarray]:
-        """Extract deep CNN features for a single bounding box."""
+        """extrae features cnn deep para un single bounding box."""
         if torch is None:
             return None
 
@@ -201,55 +201,55 @@ class FeatureExtractor:
             if roi.size == 0:
                 return None
 
-            # Preprocess and forward pass
+            # preprocesa y forward pass
             with torch.no_grad():
                 tensor = self.preprocess(roi).unsqueeze(0).to(self._deep_device)
                 embedding = self.cnn(tensor)
                 vector = embedding.squeeze().cpu().numpy()
 
-            # Normalize
+            # normaliza
             vector = vector / (np.linalg.norm(vector) + 1e-8)
             return vector.astype(np.float32)
 
         except Exception as e:
-            logger.debug(f"Deep feature extraction failed: {e}")
+            logger.debug(f"extracción features deep falló: {e}")
             return None
     
     def _extract_color_features(self, roi: np.ndarray) -> np.ndarray:
-        """Extract color histogram features."""
+        """extrae features histograma color."""
         try:
-            # Convert to HSV for better color representation
+            # convierte a hsv para mejor representación color
             hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
             
-            # Calculate histograms for each channel
+            # calcula histogramas para cada canal
             h_hist = cv2.calcHist([hsv], [0], None, [32], [0, 180])
             s_hist = cv2.calcHist([hsv], [1], None, [32], [0, 256])
             v_hist = cv2.calcHist([hsv], [2], None, [32], [0, 256])
             
-            # Concatenate and normalize
+            # concatena y normaliza
             color_features = np.concatenate([h_hist, s_hist, v_hist]).flatten()
             color_features = color_features / (np.sum(color_features) + 1e-8)
             
             return color_features
             
         except Exception:
-            # Return zero features on error
+            # retorna features cero en error
             return np.zeros(96, dtype=np.float32)
     
     def _extract_hog_features(self, roi: np.ndarray) -> np.ndarray:
-        """Extract HOG (Histogram of Oriented Gradients) features."""
+        """extrae features hog (histogram of oriented gradients)."""
         try:
-            # Convert to grayscale
+            # convierte a escala grises
             gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
             
-            # Compute HOG features
+            # computa features hog
             hog_features = self.hog.compute(gray)
             
             if hog_features is not None:
                 return hog_features.flatten()
             else:
-                return np.zeros(3780, dtype=np.float32)  # Default HOG size
+                return np.zeros(3780, dtype=np.float32)  # tamaño hog por defecto
                 
         except Exception:
-            # Return zero features on error
+            # retorna features cero en error
             return np.zeros(3780, dtype=np.float32) 

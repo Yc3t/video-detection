@@ -1,6 +1,4 @@
-"""
-Multi-object tracking module with DeepSORT implementation.
-"""
+
 
 from .tracker import PersonTracker, Track
 from .deepsort import DeepSORTTracker
