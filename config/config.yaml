@@ -1,0 +1,122 @@
+# Person Detection and Tracking Configuration
+
+# Detection settings
+detection:
+  model_name: "yolov8m.pt"  # yolov8n.pt, yolov8s.pt, yolov8m.pt, yolov8l.pt, yolov8x.pt
+  confidence_threshold: 0.4  # Lowered for better recall
+  iou_threshold: 0.45
+  device: "auto"  # auto, cpu, cuda:0, etc.
+  classes: [0]  # Only detect persons (class 0 in COCO)
+  max_det: 300
+  
+# Tracking settings
+tracking:
+  max_disappeared: 70  # Increased for better persistence
+  max_distance: 0.7    # Adjusted for normalized distances
+  tracker_type: "deepsort"  # deepsort, sort, bytetrack
+  
+  # DeepSORT specific settings
+  deepsort:
+    model_path: "models/deep_sort/mars-small128.pb"
+    max_cosine_distance: 0.7    # Increased tolerance
+    nn_budget: 100
+    max_iou_distance: 0.7
+    max_age: 70
+    n_init: 3
+    appearance_weight: 0.4      # Balanced appearance vs motion
+
+# Re-identification settings
+reid:
+  # Face recognition
+  face:
+    enabled: true
+    model_name: "buffalo_l"  # buffalo_l, buffalo_m, buffalo_s
+    similarity_threshold: 0.6
+    min_face_size: 32
+    
+  # Body re-identification
+  body:
+    enabled: true
+    model_path: "models/reid/osnet_x1_0_imagenet.pth"
+    similarity_threshold: 0.7
+    
+  # Global ID management
+  global_id:
+    merge_threshold: 0.8
+    min_appearances: 3
+    temporal_window: 30  # seconds
+
+# Feature extraction settings
+features:
+  extractor_type: "simple"  # simple, resnet, osnet
+  feature_dim: 512
+  normalize: true
+  
+  # Simple extractor settings
+  simple:
+    use_color_histogram: true
+    use_hog: true
+    resize_height: 128
+    resize_width: 64
+
+# Storage settings
+storage:
+  # Vector database
+  vector_db:
+    type: "faiss"  # faiss, milvus, qdrant
+    dimension: 512
+    index_type: "IVF"
+    nlist: 100
+    
+  # Metadata database
+  metadata_db:
+    type: "postgresql"
+    host: "localhost"
+    port: 5432
+    database: "person_tracking"
+    username: "postgres"
+    password: "password"
+    
+  # File storage
+  file_storage:
+    type: "local"  # local, s3, minio
+    base_path: "data/"
+    
+# Processing settings
+processing:
+  batch_size: 1
+  max_workers: 4
+  frame_skip: 1  # Process every nth frame
+  resize_height: 640
+  
+  # Performance optimizations
+  enable_frame_validation: true
+  fallback_to_iou: true      # Use IoU fallback on tracking errors
+  max_detection_age: 30      # Frames to keep detections in memory
+  
+# Visualization settings
+visualization:
+  show_track_ids: true
+  show_confidence: true
+  track_colors: "rainbow"    # rainbow, fixed, random
+  bbox_thickness: 2
+  font_scale: 0.6
+  
+# API settings
+api:
+  host: "0.0.0.0"
+  port: 8000
+  cors_origins: ["*"]
+  max_file_size: 1000000000  # 1GB
+  
+# Logging
+logging:
+  level: "INFO"
+  format: "{time:YYYY-MM-DD HH:mm:ss} | {level} | {name}:{function}:{line} | {message}"
+  file: "logs/app.log"
+  
+  # Debug settings
+  debug:
+    log_tracking_details: false
+    log_feature_extraction: false
+    save_debug_frames: false 
